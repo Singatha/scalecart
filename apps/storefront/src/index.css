@@ -1,0 +1,28 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 42 33% 95%;
+    --foreground: 155 18% 13%;
+    --primary: 155 18% 13%;
+    --primary-foreground: 42 33% 95%;
+    --secondary: 42 35% 88%;
+    --secondary-foreground: 155 18% 13%;
+    --muted: 40 20% 90%;
+    --muted-foreground: 150 7% 39%;
+    --accent: 15 48% 49%;
+    --accent-foreground: 15 48% 43%;
+    --border: 155 10% 78%;
+    --radius: 0.75rem;
+  }
+
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background text-foreground antialiased; }
+  ::selection { @apply bg-primary text-primary-foreground; }
+}
+

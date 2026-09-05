@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - packages/python-common
+          - services/user-service
+          - services/product-service
+          - services/cart-service
+          - services/order-service
+          - services/payment-service
+          - services/notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install shared package and test dependencies
+        run: |
+          pip install -e 'packages/python-common[test]' ruff
+          if [ "${{ matrix.target }}" != "packages/python-common" ]; then pip install -e '${{ matrix.target }}[test]'; fi
+      - name: Lint
+        run: ruff check packages services && ruff format --check packages services
+      - name: Test
+        working-directory: ${{ matrix.target }}
+        run: pytest tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/storefront
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/storefront/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  containers:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
