@@ -174,3 +174,24 @@ class CartVariantRead(BaseModel):
     currency: str
     stock_quantity: int
     image_url: str | None
+
+
+class InventoryReservationItem(BaseModel):
+    variant_id: UUID
+    quantity: int = Field(ge=1)
+
+
+class InventoryReservationCreate(BaseModel):
+    reservation_id: UUID
+    items: list[InventoryReservationItem] = Field(min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def variants_are_unique(self) -> "InventoryReservationCreate":
+        if len({item.variant_id for item in self.items}) != len(self.items):
+            raise ValueError("Inventory reservation variants must be unique.")
+        return self
+
+
+class InventoryReservationRead(BaseModel):
+    reservation_id: UUID
+    status: str

@@ -45,4 +45,8 @@ test("renders cart contents and reconciled totals", () => {
     "/products/woven-linen-throw",
   )
   expect(screen.getByText("(2)")).toBeInTheDocument()
+  expect(screen.getByRole("link", { name: "Continue to checkout" })).toHaveAttribute(
+    "href",
+    "/checkout",
+  )
 })

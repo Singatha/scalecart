@@ -149,3 +149,18 @@ class ProductImage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     product: Mapped[Product] = relationship(back_populates="images")
+
+
+class InventoryReservation(Base):
+    __tablename__ = "inventory_reservations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('reserved', 'released')", name="ck_inventory_reservations_status"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    items: Mapped[list[dict[str, str | int]]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default="reserved")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

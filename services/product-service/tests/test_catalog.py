@@ -152,6 +152,40 @@ async def test_product_detail_and_variant_inventory_updates(client) -> None:
     assert refreshed.json()["in_stock"] is False
 
 
+async def test_inventory_reservations_are_atomic_idempotent_and_releasable(client) -> None:
+    category = await create_category(client)
+    product = await create_product(client, category["id"], stock=3)
+    variant_id = product["variants"][0]["id"]
+    reservation_id = str(uuid4())
+    payload = {
+        "reservation_id": reservation_id,
+        "items": [{"variant_id": variant_id, "quantity": 2}],
+    }
+
+    reserved = await client.post("/internal/inventory/reservations", json=payload)
+    assert reserved.status_code == 200
+    repeated = await client.post("/internal/inventory/reservations", json=payload)
+    assert repeated.status_code == 200
+    variant = await client.get(f"/internal/variants/{variant_id}")
+    assert variant.json()["stock_quantity"] == 1
+
+    unavailable = await client.post(
+        "/internal/inventory/reservations",
+        json={
+            "reservation_id": str(uuid4()),
+            "items": [{"variant_id": variant_id, "quantity": 2}],
+        },
+    )
+    assert unavailable.status_code == 409
+
+    released = await client.delete(f"/internal/inventory/reservations/{reservation_id}")
+    assert released.status_code == 200
+    repeated_release = await client.delete(f"/internal/inventory/reservations/{reservation_id}")
+    assert repeated_release.status_code == 200
+    variant = await client.get(f"/internal/variants/{variant_id}")
+    assert variant.json()["stock_quantity"] == 3
+
+
 async def test_archiving_categories_and_products_hides_public_catalog(client) -> None:
     category = await create_category(client)
     product = await create_product(client, category["id"])

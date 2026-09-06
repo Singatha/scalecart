@@ -76,7 +76,7 @@ export function ProductDetailPage() {
           >
             {pendingVariantId === variant?.id ? "Adding…" : variant?.stock_quantity ? "Add to bag" : "Currently unavailable"}
           </Button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">Your bag is saved for 30 days. Checkout arrives in Phase 5.</p>
+          <p className="mt-3 text-center text-xs text-muted-foreground">Your bag is saved for 30 days. Secure checkout is available; payment arrives in Phase 6.</p>
 
           <div className="mt-10 grid gap-4 border-t border-foreground/10 pt-7 text-sm sm:grid-cols-2">
             <span className="flex items-center gap-2"><PackageCheck className="size-4" /> Carefully packed</span>

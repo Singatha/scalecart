@@ -30,8 +30,10 @@ archived products and products in inactive categories return `404`.
 ## Money and inventory
 
 All monetary values are integers in the currency's minor unit. For example, `129900` with currency
-`ZAR` represents R1,299.00. Variant stock is a non-negative integer. Phase 3 reports availability;
-reservation and cart behavior begins in the cart phase.
+`ZAR` represents R1,299.00. Variant stock is a non-negative integer. Phase 5 checkout uses a
+private-network reservation contract that locks all requested variants and decrements them in one
+transaction. The order ID is the reservation ID, making reserve and release calls idempotent; these
+internal routes are not exposed by the gateway.
 
 ## Catalog administration
 

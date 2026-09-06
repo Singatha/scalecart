@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from .auth import AdminPrincipal
 from .database import get_session
-from .models import Category, Product, ProductImage, ProductVariant
+from .models import Category, InventoryReservation, Product, ProductImage, ProductVariant, utc_now
 from .schemas import (
     CartVariantRead,
     CategoryCreate,
@@ -20,6 +20,8 @@ from .schemas import (
     CategoryUpdate,
     ImageCreate,
     ImageRead,
+    InventoryReservationCreate,
+    InventoryReservationRead,
     ProductCreate,
     ProductDetail,
     ProductList,
@@ -251,6 +253,100 @@ async def get_cart_variant(variant_id: UUID, session: Session) -> CartVariantRea
         stock_quantity=variant.stock_quantity,
         image_url=product.primary_image,
     )
+
+
+@router.post(
+    "/internal/inventory/reservations",
+    response_model=InventoryReservationRead,
+    include_in_schema=False,
+)
+async def reserve_inventory(
+    payload: InventoryReservationCreate,
+    session: Session,
+) -> InventoryReservationRead:
+    requested_items = sorted(
+        (item.model_dump(mode="json") for item in payload.items),
+        key=lambda item: item["variant_id"],
+    )
+    existing = await session.get(InventoryReservation, payload.reservation_id)
+    if existing:
+        if existing.status != "reserved" or existing.items != requested_items:
+            raise HTTPException(status_code=409, detail="Inventory reservation conflicts.")
+        return InventoryReservationRead(reservation_id=existing.id, status=existing.status)
+
+    variant_ids = sorted((item.variant_id for item in payload.items), key=str)
+    result = await session.scalars(
+        select(ProductVariant)
+        .options(selectinload(ProductVariant.product).selectinload(Product.category))
+        .where(ProductVariant.id.in_(variant_ids))
+        .order_by(ProductVariant.id)
+        .with_for_update()
+    )
+    variants = {variant.id: variant for variant in result}
+    requested = {item.variant_id: item.quantity for item in payload.items}
+    unavailable = [
+        variant_id
+        for variant_id, quantity in requested.items()
+        if variant_id not in variants
+        or not variants[variant_id].is_active
+        or variants[variant_id].product.status != "active"
+        or not variants[variant_id].product.category.is_active
+        or variants[variant_id].stock_quantity < quantity
+    ]
+    if unavailable:
+        raise HTTPException(status_code=409, detail="One or more items are no longer available.")
+    for variant_id, quantity in requested.items():
+        variants[variant_id].stock_quantity -= quantity
+    reservation = InventoryReservation(
+        id=payload.reservation_id,
+        items=requested_items,
+        status="reserved",
+    )
+    session.add(reservation)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        existing = await session.get(InventoryReservation, payload.reservation_id)
+        if existing is None or existing.status != "reserved" or existing.items != requested_items:
+            raise HTTPException(
+                status_code=409, detail="Inventory reservation conflicts."
+            ) from None
+        reservation = existing
+    return InventoryReservationRead(reservation_id=reservation.id, status=reservation.status)
+
+
+@router.delete(
+    "/internal/inventory/reservations/{reservation_id}",
+    response_model=InventoryReservationRead,
+    include_in_schema=False,
+)
+async def release_inventory(
+    reservation_id: UUID,
+    session: Session,
+) -> InventoryReservationRead:
+    reservation = await session.scalar(
+        select(InventoryReservation)
+        .where(InventoryReservation.id == reservation_id)
+        .with_for_update()
+    )
+    if reservation is None:
+        raise HTTPException(status_code=404, detail="Inventory reservation not found.")
+    if reservation.status == "released":
+        return InventoryReservationRead(reservation_id=reservation.id, status=reservation.status)
+    requested = {UUID(item["variant_id"]): int(item["quantity"]) for item in reservation.items}
+    result = await session.scalars(
+        select(ProductVariant)
+        .where(ProductVariant.id.in_(requested))
+        .order_by(ProductVariant.id)
+        .with_for_update()
+    )
+    for variant in result:
+        variant.stock_quantity += requested[variant.id]
+    reservation.status = "released"
+    reservation.released_at = utc_now()
+    await session.commit()
+    return InventoryReservationRead(reservation_id=reservation.id, status=reservation.status)
 
 
 @router.post(

@@ -13,6 +13,7 @@ type CartState = {
   cart: Cart | null
   isOpen: boolean
   isLoading: boolean
+  hasLoaded: boolean
   pendingVariantId: string | null
   error: string | null
   open: () => void
@@ -22,6 +23,7 @@ type CartState = {
   update: (variantId: string, quantity: number) => Promise<void>
   remove: (variantId: string) => Promise<void>
   clear: () => Promise<void>
+  completeCheckout: () => void
 }
 
 function message(error: unknown): string {
@@ -32,6 +34,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   cart: null,
   isOpen: false,
   isLoading: false,
+  hasLoaded: false,
   pendingVariantId: null,
   error: null,
   open: () => set({ isOpen: true }),
@@ -44,7 +47,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (error) {
       set({ error: message(error) })
     } finally {
-      set({ isLoading: false })
+      set({ isLoading: false, hasLoaded: true })
     }
   },
   add: async (variantId, quantity = 1) => {
@@ -82,11 +85,25 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       await clearCartApi()
       const current = get().cart
-      set({ cart: current ? { ...current, items: [], item_count: 0, subtotal_amount: 0 } : null })
+      set({
+        cart: current
+          ? { ...current, items: [], item_count: 0, subtotal_amount: 0, currency: null }
+          : null,
+      })
     } catch (error) {
       set({ error: message(error) })
     } finally {
       set({ isLoading: false })
     }
+  },
+  completeCheckout: () => {
+    const current = get().cart
+    set({
+      cart: current
+        ? { ...current, items: [], item_count: 0, subtotal_amount: 0, currency: null }
+        : null,
+      isOpen: false,
+      error: null,
+    })
   },
 }))

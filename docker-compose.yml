@@ -111,10 +111,22 @@ services:
       SERVICE_NAME: order-service
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-commerce}:${POSTGRES_PASSWORD:-commerce_dev}@postgres:5432/commerce_orders
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://commerce:commerce_dev@rabbitmq:5672/}
+      CART_SERVICE_URL: http://cart-service:8000
+      PRODUCT_SERVICE_URL: http://product-service:8000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-me-use-32-bytes}
+      JWT_ISSUER: ${JWT_ISSUER:-scalecart}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-scalecart-storefront}
+      STANDARD_SHIPPING_AMOUNT: ${STANDARD_SHIPPING_AMOUNT:-9900}
+      EXPRESS_SHIPPING_AMOUNT: ${EXPRESS_SHIPPING_AMOUNT:-19900}
+      FREE_SHIPPING_THRESHOLD_AMOUNT: ${FREE_SHIPPING_THRESHOLD_AMOUNT:-150000}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      product-service:
         condition: service_healthy
     healthcheck: *python-healthcheck
     restart: unless-stopped

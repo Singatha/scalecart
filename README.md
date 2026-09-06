@@ -1,6 +1,6 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 4 (shopping cart) is implemented**.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 5 (orders and checkout) is implemented**.
 
 ## What works now
 
@@ -16,6 +16,8 @@ A production-style e-commerce platform built as a monorepo of independently depl
 - Redis-backed guest and authenticated carts with atomic updates and 30-day sliding expiry
 - Live cart price/stock reconciliation, quantity enforcement, and guest-to-customer cart merging
 - Storefront bag drawer with persistent identity, quantity controls, availability warnings, and totals
+- Guest and customer checkout with immutable order, delivery-address, and price snapshots
+- Idempotent inventory reservation, private guest order tracking, customer history, and order states
 - One PostgreSQL cluster with isolated databases owned by user, product, order, and payment services
 - Redis for cart state and RabbitMQ for future domain events
 - Prometheus scraping every API and Grafana with an auto-provisioned datasource
@@ -144,6 +146,19 @@ requests use the access-token subject instead. See
 [the cart-service contract](docs/architecture/cart-service.md) for persistence and reconciliation
 behavior.
 
+The Phase 5 order API provides:
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/orders` | Validate a cart, reserve inventory, and create an order |
+| `GET /api/orders` | List a customer's orders, or all orders for an administrator |
+| `GET /api/orders/{number}` | Read an owned order or track a guest order with its private token |
+| `PATCH /api/orders/{number}/status` | Apply an administrator-only order-state transition |
+
+Checkout requests require an `Idempotency-Key`. Product and address data are snapshotted so order
+history remains stable as the catalog changes. See
+[the order-service contract](docs/architecture/order-service.md) for inventory and access behavior.
+
 ## Environment variables
 
 | Name | Purpose |
@@ -154,6 +169,7 @@ behavior.
 | `BOOTSTRAP_ADMIN_*` | Optional first-administrator seed values |
 | `REDIS_URL` | Cart store connection URL |
 | `CART_TTL_SECONDS`, `MAXIMUM_ITEM_QUANTITY`, `MAXIMUM_CART_ITEMS` | Cart lifetime and size limits |
+| `STANDARD_SHIPPING_AMOUNT`, `EXPRESS_SHIPPING_AMOUNT`, `FREE_SHIPPING_THRESHOLD_AMOUNT` | Checkout shipping rules in minor units |
 | `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` | Broker bootstrap login |
 | `RABBITMQ_URL` | AMQP service connection URL |
 | `CORS_ORIGINS` | Comma-separated browser origins |
@@ -165,4 +181,4 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phases 1–4 provide the platform foundation, identity, catalog, and persistent shopping bag. Orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases.
+Phases 1–5 provide the platform foundation, identity, catalog, persistent shopping bag, and checkout-backed orders. Payments, events, resilience, and Kubernetes follow in their requested phases.

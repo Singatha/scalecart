@@ -76,7 +76,13 @@ export function CartDrawer() {
               <strong className="font-display text-2xl">{formatMoney(cart.subtotal_amount, cart.currency ?? "ZAR")}</strong>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">Shipping and taxes are calculated at checkout.</p>
-            <Button className="mt-5 w-full" size="lg" disabled>Checkout — Phase 5</Button>
+            {cart.items.every((item) => item.is_available) ? (
+              <Button asChild className="mt-5 w-full" size="lg">
+                <Link to="/checkout" onClick={close}>Continue to checkout</Link>
+              </Button>
+            ) : (
+              <Button className="mt-5 w-full" size="lg" disabled>Resolve unavailable items</Button>
+            )}
             <button onClick={clear} className="mt-4 w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline">Clear bag</button>
           </footer>
         )}

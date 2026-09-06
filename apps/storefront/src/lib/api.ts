@@ -194,3 +194,83 @@ export async function clearCart(): Promise<void> {
   })
   if (!response.ok) throw new Error("We couldn't clear your bag.")
 }
+
+export type ShippingAddress = {
+  recipient_name: string
+  line1: string
+  line2?: string | null
+  city: string
+  region: string
+  postal_code: string
+  country_code: string
+  phone?: string | null
+}
+
+export type CheckoutDetails = {
+  email: string
+  delivery_method: "standard" | "express"
+  shipping_address: ShippingAddress
+}
+
+export type OrderItem = Pick<
+  CartItem,
+  | "variant_id"
+  | "product_id"
+  | "product_slug"
+  | "product_name"
+  | "variant_name"
+  | "sku"
+  | "quantity"
+  | "unit_price_amount"
+  | "line_total_amount"
+  | "image_url"
+>
+
+export type Order = {
+  id: string
+  number: string
+  customer_id: string | null
+  email: string
+  status: string
+  currency: string
+  subtotal_amount: number
+  shipping_amount: number
+  total_amount: number
+  delivery_method: string
+  shipping_address: ShippingAddress
+  items: OrderItem[]
+  created_at: string
+  updated_at: string
+}
+
+export type CheckoutResult = Order & { access_token: string | null }
+
+const orderTokenKey = (number: string) => `scalecart_order_${number}`
+
+export async function createOrder(
+  details: CheckoutDetails,
+  idempotencyKey: string,
+): Promise<CheckoutResult> {
+  const order = await requestJson<CheckoutResult>("/orders", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+      ...cartHeaders(),
+    },
+    body: JSON.stringify(details),
+  })
+  if (order.access_token && typeof localStorage !== "undefined") {
+    localStorage.setItem(orderTokenKey(order.number), order.access_token)
+  }
+  return order
+}
+
+export function getOrder(number: string): Promise<Order> {
+  const orderToken = typeof localStorage === "undefined"
+    ? null
+    : localStorage.getItem(orderTokenKey(number))
+  return requestJson<Order>(`/orders/${encodeURIComponent(number)}`, {
+    headers: { ...cartHeaders(), ...(orderToken ? { "X-Order-Token": orderToken } : {}) },
+  })
+}

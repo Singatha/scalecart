@@ -75,3 +75,15 @@ Cart items store a display snapshot, not product authority. Every read and mutat
 through product-service's private-network contract to reconcile current price, availability, and stock.
 The cart service does not connect to the product database, and unavailable lines are excluded from the
 payable subtotal.
+
+## Phase 5 order domain
+
+Order-service orchestrates checkout without reading another service's database. It retrieves the live
+cart contract, persists immutable item and delivery snapshots, and asks product-service for an
+idempotent inventory reservation. Successful orders enter `pending_payment`; payment authorization is
+left to Phase 6.
+
+Guest orders use a private tracking token while JWT-authenticated customers can list their history.
+Checkout idempotency keys prevent duplicate orders, inventory reservations prevent overselling, and
+administrator status changes follow an explicit transition graph. Cancelling before fulfillment
+idempotently returns reserved inventory.
