@@ -47,6 +47,15 @@ services:
       <<: *service-environment
       SERVICE_NAME: user-service
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-commerce}:${POSTGRES_PASSWORD:-commerce_dev}@postgres:5432/commerce_users
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-me-use-32-bytes}
+      JWT_ISSUER: ${JWT_ISSUER:-scalecart}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-scalecart-storefront}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-15}
+      REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-7}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_FIRST_NAME: ${BOOTSTRAP_ADMIN_FIRST_NAME:-Store}
+      BOOTSTRAP_ADMIN_LAST_NAME: ${BOOTSTRAP_ADMIN_LAST_NAME:-Administrator}
     depends_on:
       postgres:
         condition: service_healthy

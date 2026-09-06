@@ -2,6 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from app.models import Base
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -13,7 +14,7 @@ if config.config_file_name:
 settings = ServiceSettings()
 if settings.database_url:
     config.set_main_option("sqlalchemy.url", settings.database_url)
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

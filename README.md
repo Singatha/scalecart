@@ -1,12 +1,15 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 1 (foundation) is implemented** and domain features intentionally begin in Phase 2.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 2 (identity and customer profiles) is implemented**.
 
 ## What works now
 
 - React 18, strict TypeScript, Vite, Tailwind CSS, and shadcn-compatible UI primitives
 - NGINX serving the single-page application and routing `/api/*` traffic
 - Six FastAPI service shells with `/health`, `/ready`, `/metrics`, OpenAPI, structured JSON logs, request IDs, CORS, and consistent errors
+- User registration and login with Argon2 password hashing and signed, short-lived JWT access tokens
+- One-time refresh-token rotation and revocation, backed by hashed token records in PostgreSQL
+- Authenticated customer profiles, customer/admin roles, admin-only role assignment, and owned address CRUD
 - One PostgreSQL cluster with isolated databases owned by user, product, order, and payment services
 - Redis for the future cart service and RabbitMQ for future domain events
 - Prometheus scraping every API and Grafana with an auto-provisioned datasource
@@ -41,8 +44,13 @@ Requirements: Docker with Compose v2+. No local Python or Node installation is n
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
+make migrate
 ```
+
+To create or promote the first administrator, set `BOOTSTRAP_ADMIN_EMAIL` and
+`BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then run `make seed`. The command is idempotent and does not
+reset an existing account's password.
 
 Open:
 
@@ -66,7 +74,7 @@ make install-frontend   # install locked frontend dependencies
 make lint
 make test
 make migrate
-make seed               # becomes active when domain models are introduced
+make seed               # create or promote the configured bootstrap admin
 npm run test:e2e --prefix apps/storefront  # with the Compose stack running
 ```
 
@@ -82,11 +90,31 @@ npm run test:e2e --prefix apps/storefront  # with the Compose stack running
 
 Each service exposes operational endpoints internally: `GET /health`, `GET /ready`, and `GET /metrics`. The gateway's temporary `/api/system/ready` route demonstrates the Phase 1 browser-to-database path.
 
+The Phase 2 user API provides:
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/auth/register` | Create a customer and return an access/refresh token pair |
+| `POST /api/auth/login` | Authenticate with email and password |
+| `POST /api/auth/refresh` | Rotate a refresh token; the submitted token becomes unusable |
+| `POST /api/auth/logout` | Revoke a refresh token |
+| `GET`, `PATCH /api/users/me` | Read or update the authenticated profile |
+| `GET`, `POST /api/users/me/addresses` | List or create owned addresses |
+| `PATCH`, `DELETE /api/users/me/addresses/{id}` | Update or remove an owned address |
+| `GET /api/users/{id}` | Read a user as an administrator |
+| `PUT /api/users/{id}/roles` | Replace a user's roles as an administrator |
+
+See [the user-service contract](docs/architecture/user-service.md) for request examples and security
+behavior.
+
 ## Environment variables
 
 | Name | Purpose |
 |---|---|
 | `POSTGRES_USER`, `POSTGRES_PASSWORD` | Local PostgreSQL login |
+| `JWT_SECRET_KEY`, `JWT_ISSUER`, `JWT_AUDIENCE` | JWT signing and claim validation |
+| `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` | Authentication token lifetimes |
+| `BOOTSTRAP_ADMIN_*` | Optional first-administrator seed values |
 | `REDIS_URL` | Cart store connection URL |
 | `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` | Broker bootstrap login |
 | `RABBITMQ_URL` | AMQP service connection URL |
@@ -99,4 +127,4 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phase 2 adds user registration, JWT authentication, refresh-token rotation, profiles, roles, addresses, database models, and migrations. Catalog, cart, orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases rather than being prematurely coupled to the foundation.
+Phases 1 and 2 provide the platform foundation and user domain. Catalog, cart, orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases rather than being prematurely coupled to identity.

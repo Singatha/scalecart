@@ -1,6 +1,6 @@
 # System overview
 
-## Phase 1 topology
+## Current topology
 
 The browser has one origin and one API authority: NGINX on port 8080. NGINX serves the compiled React application, attaches or forwards a request ID, adds security headers, and routes API paths to services on the private Compose network.
 
@@ -41,6 +41,13 @@ Every service provides:
 - `X-Request-ID`: accepts the gateway ID or creates one, includes it in logs and responses
 - JSON errors shaped as `{ "error": { "code", "message", "correlation_id", "details?" } }`
 
-## Phase boundary
+## Phase 2 user domain
 
-This foundation contains no commerce tables and no placeholder business behavior. Phase 2 introduces the user-service domain and its first non-empty migration. This keeps migrations and tests coupled to real requirements.
+The user service owns `users`, `roles`, `user_roles`, `addresses`, and `refresh_tokens`. Passwords are
+stored only as Argon2 hashes. Access JWTs are short-lived and stateless, while refresh JWTs are stored
+as SHA-256 hashes and rotated under a row lock. Profile and address routes always derive ownership from
+the access token; clients cannot submit a user ID for these operations. Administrative user lookup and
+role replacement require a current database-backed `admin` role.
+
+No other service reads the user database. Later services receive user identity through authenticated
+API claims or explicit service contracts rather than shared tables.

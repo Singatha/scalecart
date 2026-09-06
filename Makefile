@@ -57,4 +57,4 @@ migrate:
 	$(COMPOSE) exec payment-service alembic upgrade head
 
 seed:
-	@echo "Seed data is introduced with the domain models in Phases 2 and 3."
+	$(COMPOSE) exec user-service python -m app.seed

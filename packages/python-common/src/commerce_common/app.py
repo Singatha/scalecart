@@ -5,6 +5,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -102,7 +103,7 @@ def create_service_app(
             code="validation_error",
             message="The request was invalid.",
             correlation_id=correlation_id,
-            details=exc.errors(),
+            details=jsonable_encoder(exc.errors()),
         )
 
     @app.exception_handler(Exception)
