@@ -58,3 +58,4 @@ migrate:
 
 seed:
 	$(COMPOSE) exec user-service python -m app.seed
+	$(COMPOSE) exec product-service python -m app.seed

@@ -39,6 +39,8 @@ def create_token(
     user_id: UUID,
     token_type: Literal["access", "refresh"],
     settings: UserServiceSettings,
+    *,
+    roles: list[str] | None = None,
 ) -> EncodedToken:
     now = datetime.now(UTC)
     lifetime = (
@@ -57,6 +59,8 @@ def create_token(
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_audience,
     }
+    if token_type == "access":
+        claims["roles"] = sorted(roles or [])
     value = jwt.encode(claims, settings.jwt_secret_key, algorithm="HS256")
     return EncodedToken(value=value, jti=jti, expires_at=expires_at)
 

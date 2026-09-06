@@ -57,7 +57,7 @@ def _invalid_refresh_token() -> HTTPException:
 
 
 def _issue_token_pair(user: User, session: Session) -> tuple[TokenPair, RefreshToken]:
-    access = create_token(user.id, "access", settings)
+    access = create_token(user.id, "access", settings, roles=user.role_names)
     refresh = create_token(user.id, "refresh", settings)
     stored_refresh = RefreshToken(
         user_id=user.id,

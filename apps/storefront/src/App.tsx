@@ -3,19 +3,12 @@ import { Navigate, Route, Routes } from "react-router-dom"
 
 import { Navbar } from "@/components/navbar"
 import { HomePage } from "@/pages/home-page"
+import { ProductDetailPage } from "@/pages/product-detail-page"
+import { ProductsPage } from "@/pages/products-page"
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 })
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-24 lg:px-8">
-      <p className="text-xs font-bold uppercase tracking-[.2em] text-accent-foreground">Coming in the next phase</p>
-      <h1 className="mt-4 font-display text-6xl tracking-tight">{title}</h1>
-    </main>
-  )
-}
 
 export default function App() {
   return (
@@ -23,8 +16,9 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/products" element={<Placeholder title="The collection" />} />
-        <Route path="/categories/:slug" element={<Placeholder title="Curated goods" />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:slug" element={<ProductDetailPage />} />
+        <Route path="/categories/:slug" element={<ProductsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <footer className="border-t border-foreground/10 px-5 py-8 text-center text-xs text-muted-foreground">

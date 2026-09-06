@@ -14,7 +14,8 @@ async def seed_admin() -> None:
     email = os.getenv("BOOTSTRAP_ADMIN_EMAIL")
     password = os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
     if not email or not password:
-        raise SystemExit("Set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD before seeding.")
+        print("Bootstrap administrator skipped; credentials are not configured.")
+        return
     if session_factory is None:
         raise SystemExit("DATABASE_URL is required before seeding.")
 

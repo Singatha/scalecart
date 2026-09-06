@@ -1,6 +1,6 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 2 (identity and customer profiles) is implemented**.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 3 (product catalog) is implemented**.
 
 ## What works now
 
@@ -10,6 +10,9 @@ A production-style e-commerce platform built as a monorepo of independently depl
 - User registration and login with Argon2 password hashing and signed, short-lived JWT access tokens
 - One-time refresh-token rotation and revocation, backed by hashed token records in PostgreSQL
 - Authenticated customer profiles, customer/admin roles, admin-only role assignment, and owned address CRUD
+- Category and product discovery with search, price/stock filters, sorting, and pagination
+- Product variants with SKU, minor-unit pricing, attributes and stock, plus ordered product media
+- Responsive storefront collection, category, and product-detail experiences
 - One PostgreSQL cluster with isolated databases owned by user, product, order, and payment services
 - Redis for the future cart service and RabbitMQ for future domain events
 - Prometheus scraping every API and Grafana with an auto-provisioned datasource
@@ -48,9 +51,9 @@ docker compose up --build -d
 make migrate
 ```
 
-To create or promote the first administrator, set `BOOTSTRAP_ADMIN_EMAIL` and
-`BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then run `make seed`. The command is idempotent and does not
-reset an existing account's password.
+Run `make seed` after migrating to load the sample catalog. To also create or promote the first
+administrator, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in `.env` first. Seeding is
+idempotent and does not reset an existing account's password.
 
 Open:
 
@@ -74,7 +77,7 @@ make install-frontend   # install locked frontend dependencies
 make lint
 make test
 make migrate
-make seed               # create or promote the configured bootstrap admin
+make seed               # load sample products and optionally bootstrap an admin
 npm run test:e2e --prefix apps/storefront  # with the Compose stack running
 ```
 
@@ -107,6 +110,21 @@ The Phase 2 user API provides:
 See [the user-service contract](docs/architecture/user-service.md) for request examples and security
 behavior.
 
+The Phase 3 catalog API provides:
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/categories` | List active categories |
+| `GET /api/categories/{slug}` | Read an active category |
+| `GET /api/products` | Search, filter, sort, and paginate active products |
+| `GET /api/products/{slug}` | Read a product with its active variants and ordered images |
+| `POST`, `PATCH`, `DELETE /api/categories...` | Administer categories |
+| `POST`, `PATCH`, `DELETE /api/products...` | Administer products, variants, stock, and images |
+
+Catalog write routes require an access token with the `admin` role. See
+[the product-service contract](docs/architecture/product-service.md) for query parameters, money
+representation, and write behavior.
+
 ## Environment variables
 
 | Name | Purpose |
@@ -127,4 +145,4 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phases 1 and 2 provide the platform foundation and user domain. Catalog, cart, orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases rather than being prematurely coupled to identity.
+Phases 1–3 provide the platform foundation, user domain, and browsable product catalog. Cart, orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases.

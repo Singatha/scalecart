@@ -51,3 +51,15 @@ role replacement require a current database-backed `admin` role.
 
 No other service reads the user database. Later services receive user identity through authenticated
 API claims or explicit service contracts rather than shared tables.
+
+## Phase 3 catalog domain
+
+The product service owns `categories`, `products`, `product_variants`, and `product_images`. Products
+are soft-archived so existing references remain meaningful, while public reads expose only active
+categories, products, and variants. Prices use integer minor units and an explicit ISO currency code,
+avoiding floating-point calculations at service boundaries.
+
+Public catalog reads need no authentication. Catalog writes validate the signed access token issued by
+the user service and require its short-lived `admin` role claim; the product service never connects to
+the user database. Role changes therefore propagate to catalog authorization when the current access
+token expires or is replaced.

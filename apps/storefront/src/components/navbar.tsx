@@ -13,7 +13,7 @@ export function Navbar() {
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium md:flex" aria-label="Main navigation">
           <Link className="transition-opacity hover:opacity-60" to="/products">Shop</Link>
-          <Link className="transition-opacity hover:opacity-60" to="/categories/new">New arrivals</Link>
+          <Link className="transition-opacity hover:opacity-60" to="/products?sort=newest">New arrivals</Link>
           <a className="transition-opacity hover:opacity-60" href="#story">Our story</a>
         </nav>
         <div className="flex items-center gap-2">
@@ -24,4 +24,3 @@ export function Navbar() {
     </header>
   )
 }
-

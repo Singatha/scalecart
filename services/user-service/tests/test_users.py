@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import jwt
 from app.models import Role, User
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -40,6 +41,14 @@ async def test_registration_login_profile_and_duplicate_email(client) -> None:
     assert authentication["user"]["email"] == "ada@example.com"
     assert authentication["user"]["roles"] == ["customer"]
     assert authentication["expires_in"] == 900
+    claims = jwt.decode(
+        authentication["access_token"],
+        "development-only-change-me-use-32-bytes",
+        algorithms=["HS256"],
+        audience="scalecart-storefront",
+        issuer="scalecart",
+    )
+    assert claims["roles"] == ["customer"]
 
     duplicate = await client.post(
         "/auth/register",

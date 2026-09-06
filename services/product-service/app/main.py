@@ -1,6 +1,9 @@
-from commerce_common import ServiceSettings, create_service_app, postgres_check
+from commerce_common import create_service_app, postgres_check
 
-settings = ServiceSettings(service_name="product-service")
+from .config import get_product_settings
+from .routes import router
+
+settings = get_product_settings()
 checks = {"postgres": postgres_check(settings.database_url)} if settings.database_url else {}
 app = create_service_app(
     service_name=settings.service_name,
@@ -8,3 +11,4 @@ app = create_service_app(
     readiness_checks=checks,
     log_level=settings.log_level,
 )
+app.include_router(router)
