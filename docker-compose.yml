@@ -87,8 +87,17 @@ services:
       <<: *service-environment
       SERVICE_NAME: cart-service
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PRODUCT_SERVICE_URL: http://product-service:8000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-me-use-32-bytes}
+      JWT_ISSUER: ${JWT_ISSUER:-scalecart}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-scalecart-storefront}
+      CART_TTL_SECONDS: ${CART_TTL_SECONDS:-2592000}
+      MAXIMUM_ITEM_QUANTITY: ${MAXIMUM_ITEM_QUANTITY:-99}
+      MAXIMUM_CART_ITEMS: ${MAXIMUM_CART_ITEMS:-50}
     depends_on:
       redis:
+        condition: service_healthy
+      product-service:
         condition: service_healthy
     healthcheck: *python-healthcheck
     restart: unless-stopped

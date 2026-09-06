@@ -63,3 +63,15 @@ Public catalog reads need no authentication. Catalog writes validate the signed 
 the user service and require its short-lived `admin` role claim; the product service never connects to
 the user database. Role changes therefore propagate to catalog authorization when the current access
 token expires or is replaced.
+
+## Phase 4 cart domain
+
+The cart service owns ephemeral cart state in Redis. Guest carts use opaque UUIDs supplied through
+`X-Cart-ID`; authenticated carts use the validated access-token subject. A guest cart can be merged
+once into the customer cart after authentication. Keys have a sliding 30-day expiry, and mutations use
+Redis optimistic transactions so concurrent requests do not silently overwrite each other.
+
+Cart items store a display snapshot, not product authority. Every read and mutation resolves variants
+through product-service's private-network contract to reconcile current price, availability, and stock.
+The cart service does not connect to the product database, and unavailable lines are excluded from the
+payable subtotal.

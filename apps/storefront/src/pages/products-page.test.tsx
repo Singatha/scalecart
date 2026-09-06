@@ -19,7 +19,9 @@ test("renders products returned by the catalog API", async () => {
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
-      const body = url.includes("/categories")
+      const body = url.includes("/cart")
+        ? { cart_id: "cart-1", items: [], item_count: 0, subtotal_amount: 0, currency: null, expires_in: 100 }
+        : url.includes("/categories")
         ? [category]
         : {
             items: [

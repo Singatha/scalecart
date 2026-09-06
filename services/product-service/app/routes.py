@@ -14,6 +14,7 @@ from .auth import AdminPrincipal
 from .database import get_session
 from .models import Category, Product, ProductImage, ProductVariant
 from .schemas import (
+    CartVariantRead,
     CategoryCreate,
     CategoryRead,
     CategoryUpdate,
@@ -215,6 +216,41 @@ async def get_product(slug: str, session: Session) -> Product:
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
     return product
+
+
+@router.get(
+    "/internal/variants/{variant_id}",
+    response_model=CartVariantRead,
+    include_in_schema=False,
+)
+async def get_cart_variant(variant_id: UUID, session: Session) -> CartVariantRead:
+    variant = await session.scalar(
+        select(ProductVariant)
+        .join(Product)
+        .join(Category)
+        .options(selectinload(ProductVariant.product).selectinload(Product.images))
+        .where(
+            ProductVariant.id == variant_id,
+            ProductVariant.is_active.is_(True),
+            Product.status == "active",
+            Category.is_active.is_(True),
+        )
+    )
+    if variant is None:
+        raise HTTPException(status_code=404, detail="Variant not found.")
+    product = variant.product
+    return CartVariantRead(
+        product_id=product.id,
+        product_slug=product.slug,
+        product_name=product.name,
+        variant_id=variant.id,
+        variant_name=variant.name,
+        sku=variant.sku,
+        price_amount=variant.price_amount,
+        currency=variant.currency,
+        stock_quantity=variant.stock_quantity,
+        image_url=product.primary_image,
+    )
 
 
 @router.post(

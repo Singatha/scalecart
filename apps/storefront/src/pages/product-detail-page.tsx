@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getProduct } from "@/lib/api"
+import { useCartStore } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
 
 export function ProductDetailPage() {
@@ -16,6 +17,7 @@ export function ProductDetailPage() {
     enabled: Boolean(slug),
   })
   const [selectedVariant, setSelectedVariant] = useState(0)
+  const { add, pendingVariantId } = useCartStore()
 
   if (product.isPending) {
     return <main className="mx-auto min-h-[75vh] max-w-7xl animate-pulse px-5 py-16 lg:px-8"><div className="aspect-[16/7] rounded-lg bg-muted" /></main>
@@ -66,10 +68,15 @@ export function ProductDetailPage() {
             </fieldset>
           )}
 
-          <Button size="lg" className="mt-9 w-full" disabled>
-            {variant?.stock_quantity ? "Add to bag — Phase 4" : "Currently unavailable"}
+          <Button
+            size="lg"
+            className="mt-9 w-full"
+            disabled={!variant?.stock_quantity || pendingVariantId === variant?.id}
+            onClick={() => variant && add(variant.id)}
+          >
+            {pendingVariantId === variant?.id ? "Adding…" : variant?.stock_quantity ? "Add to bag" : "Currently unavailable"}
           </Button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">Bag and checkout arrive in the next delivery phase.</p>
+          <p className="mt-3 text-center text-xs text-muted-foreground">Your bag is saved for 30 days. Checkout arrives in Phase 5.</p>
 
           <div className="mt-10 grid gap-4 border-t border-foreground/10 pt-7 text-sm sm:grid-cols-2">
             <span className="flex items-center gap-2"><PackageCheck className="size-4" /> Carefully packed</span>

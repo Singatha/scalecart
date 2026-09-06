@@ -1,6 +1,6 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 3 (product catalog) is implemented**.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 4 (shopping cart) is implemented**.
 
 ## What works now
 
@@ -13,8 +13,11 @@ A production-style e-commerce platform built as a monorepo of independently depl
 - Category and product discovery with search, price/stock filters, sorting, and pagination
 - Product variants with SKU, minor-unit pricing, attributes and stock, plus ordered product media
 - Responsive storefront collection, category, and product-detail experiences
+- Redis-backed guest and authenticated carts with atomic updates and 30-day sliding expiry
+- Live cart price/stock reconciliation, quantity enforcement, and guest-to-customer cart merging
+- Storefront bag drawer with persistent identity, quantity controls, availability warnings, and totals
 - One PostgreSQL cluster with isolated databases owned by user, product, order, and payment services
-- Redis for the future cart service and RabbitMQ for future domain events
+- Redis for cart state and RabbitMQ for future domain events
 - Prometheus scraping every API and Grafana with an auto-provisioned datasource
 - Ruff, ESLint, Pytest, HTTPX, Vitest, and React Testing Library setup
 - Reproducible containers, health checks, a non-root application user, and GitHub Actions CI
@@ -125,6 +128,22 @@ Catalog write routes require an access token with the `admin` role. See
 [the product-service contract](docs/architecture/product-service.md) for query parameters, money
 representation, and write behavior.
 
+The Phase 4 cart API provides:
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/cart` | Read and reconcile the current guest or customer cart |
+| `POST /api/cart/items` | Add a validated product variant |
+| `PATCH /api/cart/items/{variant_id}` | Set an item's quantity |
+| `DELETE /api/cart/items/{variant_id}` | Remove an item |
+| `DELETE /api/cart` | Clear the cart |
+| `POST /api/cart/merge` | Merge a guest cart into an authenticated customer cart |
+
+Guests retain the opaque cart ID returned in `cart_id` and send it as `X-Cart-ID`. Authenticated
+requests use the access-token subject instead. See
+[the cart-service contract](docs/architecture/cart-service.md) for persistence and reconciliation
+behavior.
+
 ## Environment variables
 
 | Name | Purpose |
@@ -134,6 +153,7 @@ representation, and write behavior.
 | `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` | Authentication token lifetimes |
 | `BOOTSTRAP_ADMIN_*` | Optional first-administrator seed values |
 | `REDIS_URL` | Cart store connection URL |
+| `CART_TTL_SECONDS`, `MAXIMUM_ITEM_QUANTITY`, `MAXIMUM_CART_ITEMS` | Cart lifetime and size limits |
 | `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` | Broker bootstrap login |
 | `RABBITMQ_URL` | AMQP service connection URL |
 | `CORS_ORIGINS` | Comma-separated browser origins |
@@ -145,4 +165,4 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phases 1–3 provide the platform foundation, user domain, and browsable product catalog. Cart, orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases.
+Phases 1–4 provide the platform foundation, identity, catalog, and persistent shopping bag. Orders, checkout, payments, events, resilience, and Kubernetes follow in their requested phases.

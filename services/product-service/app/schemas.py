@@ -161,3 +161,16 @@ class ProductList(BaseModel):
     page: int
     page_size: int
     pages: int
+
+
+class CartVariantRead(BaseModel):
+    product_id: UUID
+    product_slug: str
+    product_name: str
+    variant_id: UUID
+    variant_name: str
+    sku: str
+    price_amount: int
+    currency: str
+    stock_quantity: int
+    image_url: str | None

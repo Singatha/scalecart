@@ -6,12 +6,20 @@ export type ReadinessResponse = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api"
 
-async function getJson<T>(path: string): Promise<T> {
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: "application/json" },
+    ...init,
+    headers: { Accept: "application/json", ...init?.headers },
   })
-  if (!response.ok) throw new Error("We couldn't load this part of the shop.")
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: { message?: string } } | null
+    throw new Error(body?.error?.message ?? "We couldn't complete that request.")
+  }
   return response.json() as Promise<T>
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  return requestJson<T>(path)
 }
 
 export async function getSystemReadiness(): Promise<ReadinessResponse> {
@@ -104,4 +112,85 @@ export function getProducts(filters: ProductFilters = {}): Promise<ProductList> 
 
 export function getProduct(slug: string): Promise<ProductDetail> {
   return getJson<ProductDetail>(`/products/${encodeURIComponent(slug)}`)
+}
+
+export type CartItem = {
+  variant_id: string
+  product_id: string
+  product_slug: string
+  product_name: string
+  variant_name: string
+  sku: string
+  unit_price_amount: number
+  currency: string
+  quantity: number
+  line_total_amount: number
+  available_stock: number
+  is_available: boolean
+  price_changed: boolean
+  image_url: string | null
+}
+
+export type Cart = {
+  cart_id: string | null
+  items: CartItem[]
+  item_count: number
+  subtotal_amount: number
+  currency: string | null
+  expires_in: number
+}
+
+const CART_ID_KEY = "scalecart_cart_id"
+const ACCESS_TOKEN_KEY = "scalecart_access_token"
+
+function cartHeaders(): Record<string, string> {
+  if (typeof localStorage === "undefined") return {}
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+  const cartId = localStorage.getItem(CART_ID_KEY)
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(cartId ? { "X-Cart-ID": cartId } : {}),
+  }
+}
+
+function rememberCart(cart: Cart): Cart {
+  if (cart.cart_id && typeof localStorage !== "undefined") {
+    localStorage.setItem(CART_ID_KEY, cart.cart_id)
+  }
+  return cart
+}
+
+export async function getCart(): Promise<Cart> {
+  return rememberCart(await requestJson<Cart>("/cart", { headers: cartHeaders() }))
+}
+
+export async function addCartItem(variantId: string, quantity = 1): Promise<Cart> {
+  return rememberCart(await requestJson<Cart>("/cart/items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...cartHeaders() },
+    body: JSON.stringify({ variant_id: variantId, quantity }),
+  }))
+}
+
+export async function updateCartItem(variantId: string, quantity: number): Promise<Cart> {
+  return rememberCart(await requestJson<Cart>(`/cart/items/${variantId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...cartHeaders() },
+    body: JSON.stringify({ quantity }),
+  }))
+}
+
+export async function removeCartItem(variantId: string): Promise<Cart> {
+  return rememberCart(await requestJson<Cart>(`/cart/items/${variantId}`, {
+    method: "DELETE",
+    headers: cartHeaders(),
+  }))
+}
+
+export async function clearCart(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/cart`, {
+    method: "DELETE",
+    headers: { Accept: "application/json", ...cartHeaders() },
+  })
+  if (!response.ok) throw new Error("We couldn't clear your bag.")
 }

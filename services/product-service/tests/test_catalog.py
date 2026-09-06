@@ -135,6 +135,10 @@ async def test_product_detail_and_variant_inventory_updates(client) -> None:
     assert detail.status_code == 200
     assert detail.json()["variants"][0]["sku"] == "LINEN-NATURAL"
 
+    internal = await client.get(f"/internal/variants/{product['variants'][0]['id']}")
+    assert internal.status_code == 200
+    assert internal.json()["product_slug"] == product["slug"]
+
     variant_id = product["variants"][0]["id"]
     inventory = await client.patch(
         f"/products/{product['id']}/variants/{variant_id}",

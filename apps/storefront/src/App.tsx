@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Navigate, Route, Routes } from "react-router-dom"
 
 import { Navbar } from "@/components/navbar"
+import { CartDrawer } from "@/components/cart-drawer"
 import { HomePage } from "@/pages/home-page"
 import { ProductDetailPage } from "@/pages/product-detail-page"
 import { ProductsPage } from "@/pages/products-page"
@@ -14,6 +15,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Navbar />
+      <CartDrawer />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductsPage />} />
