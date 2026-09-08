@@ -12,7 +12,8 @@ service rejects empty carts or any line that cannot be fulfilled at its full qua
 The order first records immutable product, price, quantity, and address snapshots. Product-service then
 atomically locks and decrements all requested variants under the order ID. That inventory reservation
 is idempotent, so a retry cannot decrement stock twice. On success the cart is cleared and the order
-enters `pending_payment`. Payment authorization is intentionally a Phase 6 concern.
+enters `pending_payment`. Phase 6 completes and hardens this service; payment authorization is
+intentionally a Phase 7 concern.
 
 Standard shipping defaults to 99.00 in minor units and becomes free at 1,500.00; express shipping
 defaults to 199.00. All thresholds are configurable. Catalog prices are treated as tax-inclusive.

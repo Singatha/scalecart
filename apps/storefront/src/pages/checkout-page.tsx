@@ -98,7 +98,7 @@ export function CheckoutPage() {
           <Button type="submit" size="lg" className="w-full" disabled={submitting || checkoutCart.items.some((item) => !item.is_available)}>
             <LockKeyhole className="mr-2 size-4" /> {submitting ? "Placing order…" : "Place order"}
           </Button>
-          <p className="text-center text-xs text-muted-foreground">Payment authorization is introduced in Phase 6. This order will await payment.</p>
+          <p className="text-center text-xs text-muted-foreground">Payment authorization is introduced in Phase 7. This order will await payment.</p>
         </form>
 
         <aside className="h-fit rounded-lg border border-foreground/10 bg-secondary/35 p-6 lg:sticky lg:top-8">
