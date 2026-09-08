@@ -3,9 +3,9 @@
 This document is the working source of truth for ScaleCart's phased delivery. A phase is complete only
 when its exit criteria are implemented, documented, and covered by appropriate automated tests.
 
-The first five phases established the platform and a usable checkout path. Phase 5 introduced the
-minimum durable order foundation needed by checkout; Phase 6 owns completing and hardening the Order
-Service as a domain boundary.
+The first six phases established the platform and a usable checkout path. Phase 5 introduced the
+minimum durable order foundation needed by checkout; Phase 6 completed and hardened the Order Service
+as a domain boundary.
 
 ## Delivered phases
 
@@ -16,12 +16,12 @@ Service as a domain boundary.
 | 3 | Product catalog | Complete | Categories, products, variants, media, inventory, catalog administration, and discovery |
 | 4 | Shopping cart | Complete | Persistent guest and customer carts, live reconciliation, and cart merging |
 | 5 | Checkout experience | Complete | Guest/customer checkout, delivery selection, immutable checkout snapshots, and the initial order and inventory-reservation path |
+| 6 | Order Service | Complete | Auditable order lifecycle, explicit customer and administrator operations, reliable cancellation and compensation, stale-reservation recovery, and retry/failure integration coverage |
 
 ## Upcoming phases
 
 | Phase | Milestone | Exit criteria |
 |---|---|---|
-| 6 | Order Service | Order ownership and lifecycle are complete, status history is auditable, customer and administrator operations are explicit, cancellation and inventory compensation are reliable, stale reservations are handled, and checkout-to-order integration tests cover failure and retry paths. |
 | 7 | Payment Service | Provider-neutral payment intents, idempotent authorization/capture, verified asynchronous webhooks, refunds, payment history, and order/payment state coordination are implemented without storing raw card data. |
 | 8 | Domain events and transactional outbox | State changes publish versioned events through a transactional outbox; consumers are idempotent, retries and dead-letter handling are defined, and event contracts are tested. |
 | 9 | Notification Service | Order and payment events drive retryable email notifications from templates, with delivery status recorded and local development using a safe mail sink. |
@@ -46,4 +46,3 @@ Service as a domain boundary.
 - Security, resilience, and observability requirements may be added incrementally, but their named
   phases are the release gates for systematic verification.
 - A scope change should update this roadmap and any affected architecture document in the same change.
-

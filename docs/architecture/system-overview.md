@@ -76,14 +76,16 @@ through product-service's private-network contract to reconcile current price, a
 The cart service does not connect to the product database, and unavailable lines are excluded from the
 payable subtotal.
 
-## Phase 5 checkout foundation
+## Phase 6 order domain
 
 Order-service orchestrates checkout without reading another service's database. It retrieves the live
 cart contract, persists immutable item and delivery snapshots, and asks product-service for an
-idempotent inventory reservation. Successful orders enter `pending_payment`. Phase 6 completes and
-hardens the Order Service boundary; payment authorization follows in Phase 7.
+idempotent inventory reservation. Successful orders enter `pending_payment`, with a configurable
+reservation deadline; payment authorization follows in Phase 7.
 
 Guest orders use a private tracking token while JWT-authenticated customers can list their history.
 Checkout idempotency keys prevent duplicate orders, inventory reservations prevent overselling, and
 administrator status changes follow an explicit transition graph. Cancelling before fulfillment
-idempotently returns reserved inventory.
+idempotently returns reserved inventory. Every transition records its prior and next state, actor,
+reason, and timestamp. An administrator or scheduled operation can safely release expired reservations;
+failed dependency calls leave the order eligible for a later retry.

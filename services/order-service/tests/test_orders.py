@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import jwt
+from app.models import Order
+from sqlalchemy import select
 
 CART_ID = "20000000-0000-0000-0000-000000000001"
 JWT_SECRET = "development-only-change-me-use-32-bytes"
@@ -61,6 +63,11 @@ async def test_guest_checkout_snapshots_cart_and_supports_private_tracking(
     assert order["shipping_address"]["country_code"] == "ZA"
     assert order["items"][0]["quantity"] == 2
     assert order["access_token"]
+    assert [entry["to_status"] for entry in order["status_history"]] == [
+        "reserving_inventory",
+        "pending_payment",
+    ]
+    assert order["reservation_expires_at"] is not None
     assert cart.clear_count == 1
     assert len(inventory.reserved) == 1
 
@@ -112,7 +119,7 @@ async def test_admin_status_transitions_release_cancelled_inventory(client, inve
     confirmed = await client.patch(
         f"/orders/{order['number']}/status",
         headers=admin_headers,
-        json={"status": "confirmed"},
+        json={"status": "confirmed", "reason": "payment_captured"},
     )
     assert confirmed.status_code == 200
     cancelled = await client.patch(
@@ -122,6 +129,9 @@ async def test_admin_status_transitions_release_cancelled_inventory(client, inve
     )
     assert cancelled.status_code == 200
     assert cancelled.json()["status"] == "cancelled"
+    assert cancelled.json()["reservation_expires_at"] is None
+    assert cancelled.json()["status_history"][-1]["actor_type"] == "admin"
+    assert cancelled.json()["status_history"][-1]["reason"] == "administrator_transition"
     assert inventory.released == [UUID(order["id"])]
 
     invalid = await client.patch(
@@ -130,3 +140,144 @@ async def test_admin_status_transitions_release_cancelled_inventory(client, inve
         json={"status": "shipped"},
     )
     assert invalid.status_code == 409
+
+
+async def test_customer_and_guest_cancellation_require_order_ownership(client, inventory) -> None:
+    user_id = uuid4()
+    customer_headers = {
+        **auth(user_id, ["customer"]),
+        "Idempotency-Key": "customer-cancellation-0001",
+    }
+    customer_order = (
+        await client.post("/orders", headers=customer_headers, json=checkout_payload())
+    ).json()
+
+    hidden = await client.post(
+        f"/orders/{customer_order['number']}/cancel",
+        headers=auth(uuid4(), ["customer"]),
+    )
+    assert hidden.status_code == 404
+
+    cancelled = await client.post(
+        f"/orders/{customer_order['number']}/cancel",
+        headers=auth(user_id, ["customer"]),
+    )
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+    assert cancelled.json()["status_history"][-1]["actor_type"] == "customer"
+    assert cancelled.json()["status_history"][-1]["actor_id"] == str(user_id)
+
+    guest_order = (
+        await client.post("/orders", headers=checkout_headers(), json=checkout_payload())
+    ).json()
+    guest_cancelled = await client.post(
+        f"/orders/{guest_order['number']}/cancel",
+        headers={"X-Order-Token": guest_order["access_token"]},
+    )
+    assert guest_cancelled.status_code == 200
+    assert guest_cancelled.json()["status_history"][-1]["actor_type"] == "guest"
+    assert inventory.released == [UUID(customer_order["id"]), UUID(guest_order["id"])]
+
+
+async def test_expired_reservations_are_released_and_audited(
+    client, inventory, session_factory
+) -> None:
+    created = await client.post("/orders", headers=checkout_headers(), json=checkout_payload())
+    order = created.json()
+    async with session_factory() as session:
+        stored = await session.scalar(select(Order).where(Order.id == UUID(order["id"])))
+        assert stored is not None
+        stored.reservation_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        await session.commit()
+
+    expired = await client.post(
+        "/orders/actions/expire-reservations",
+        headers=auth(uuid4(), ["admin"]),
+    )
+    assert expired.status_code == 200, expired.text
+    assert expired.json() == {"expired_count": 1, "order_numbers": [order["number"]]}
+    assert inventory.released == [UUID(order["id"])]
+
+    tracked = await client.get(
+        f"/orders/{order['number']}", headers={"X-Order-Token": order["access_token"]}
+    )
+    assert tracked.json()["status"] == "cancelled"
+    assert tracked.json()["status_history"][-1]["reason"] == "inventory_reservation_expired"
+
+
+async def test_expiry_release_can_be_retried_after_dependency_failure(
+    client, inventory, session_factory
+) -> None:
+    created = await client.post("/orders", headers=checkout_headers(), json=checkout_payload())
+    order = created.json()
+    async with session_factory() as session:
+        stored = await session.scalar(select(Order).where(Order.id == UUID(order["id"])))
+        assert stored is not None
+        stored.reservation_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        await session.commit()
+
+    inventory.release_failures = 1
+    admin_headers = auth(uuid4(), ["admin"])
+    failed = await client.post("/orders/actions/expire-reservations", headers=admin_headers)
+    assert failed.status_code == 503
+
+    retried = await client.post("/orders/actions/expire-reservations", headers=admin_headers)
+    assert retried.status_code == 200
+    assert retried.json()["expired_count"] == 1
+    assert inventory.released == [UUID(order["id"])]
+
+
+async def test_checkout_recovers_from_transient_reservation_failure(client, inventory) -> None:
+    headers = checkout_headers()
+    inventory.reserve_failures = 1
+    failed = await client.post("/orders", headers=headers, json=checkout_payload())
+    assert failed.status_code == 503
+
+    retried = await client.post("/orders", headers=headers, json=checkout_payload())
+    assert retried.status_code == 201
+    assert retried.json()["status"] == "pending_payment"
+    assert [entry["to_status"] for entry in retried.json()["status_history"]] == [
+        "reserving_inventory",
+        "pending_payment",
+    ]
+    assert inventory.reserved == [UUID(retried.json()["id"])]
+
+
+async def test_inventory_rejection_is_terminal_and_audited(
+    client, inventory, session_factory
+) -> None:
+    headers = checkout_headers()
+    inventory.unavailable = True
+    rejected = await client.post("/orders", headers=headers, json=checkout_payload())
+    assert rejected.status_code == 409
+
+    repeated = await client.post("/orders", headers=headers, json=checkout_payload())
+    assert repeated.status_code == 409
+
+    async with session_factory() as session:
+        order = await session.scalar(
+            select(Order).where(Order.idempotency_key == headers["Idempotency-Key"])
+        )
+        assert order is not None
+        assert order.status == "checkout_failed"
+        assert order.reservation_expires_at is None
+        assert order.status_history[-1].reason == "inventory_unavailable"
+
+
+async def test_order_listing_can_be_filtered_by_status(client) -> None:
+    user_id = uuid4()
+    headers = {
+        **auth(user_id, ["customer"]),
+        "Idempotency-Key": "status-filter-0001",
+    }
+    await client.post("/orders", headers=headers, json=checkout_payload())
+
+    pending = await client.get(
+        "/orders?status=pending_payment", headers=auth(user_id, ["customer"])
+    )
+    assert pending.status_code == 200
+    assert pending.json()["total"] == 1
+
+    cancelled = await client.get("/orders?status=cancelled", headers=auth(user_id, ["customer"]))
+    assert cancelled.status_code == 200
+    assert cancelled.json()["total"] == 0

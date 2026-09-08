@@ -4,6 +4,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+OrderStatus = Literal[
+    "reserving_inventory",
+    "pending_payment",
+    "confirmed",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "checkout_failed",
+]
+
 
 class ShippingAddress(BaseModel):
     recipient_name: str = Field(min_length=1, max_length=200)
@@ -67,6 +78,18 @@ class OrderItemRead(BaseModel):
     image_url: str | None
 
 
+class OrderStatusHistoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    from_status: OrderStatus | None
+    to_status: OrderStatus
+    actor_type: Literal["system", "customer", "guest", "admin", "migration"]
+    actor_id: UUID | None
+    reason: str | None
+    created_at: datetime
+
+
 class OrderRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,7 +97,7 @@ class OrderRead(BaseModel):
     number: str
     customer_id: UUID | None
     email: EmailStr
-    status: str
+    status: OrderStatus
     currency: str
     subtotal_amount: int
     shipping_amount: int
@@ -82,6 +105,8 @@ class OrderRead(BaseModel):
     delivery_method: str
     shipping_address: ShippingAddress
     items: list[OrderItemRead]
+    status_history: list[OrderStatusHistoryRead]
+    reservation_expires_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -100,3 +125,9 @@ class OrderList(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: Literal["confirmed", "processing", "shipped", "delivered", "cancelled"]
+    reason: str | None = Field(default=None, min_length=1, max_length=255)
+
+
+class ExpiredReservationsRead(BaseModel):
+    expired_count: int
+    order_numbers: list[str]

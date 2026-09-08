@@ -1,6 +1,6 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 5 (checkout) is implemented, with Phase 6 (Order Service) next**.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 6 (Order Service) is implemented, with Phase 7 (payments) next**.
 
 ## What works now
 
@@ -18,6 +18,7 @@ A production-style e-commerce platform built as a monorepo of independently depl
 - Storefront bag drawer with persistent identity, quantity controls, availability warnings, and totals
 - Guest and customer checkout with immutable order, delivery-address, and price snapshots
 - Idempotent inventory reservation, private guest order tracking, customer history, and order states
+- Auditable order status history, owner cancellation, and retryable expiry of stale reservations
 - One PostgreSQL cluster with isolated databases owned by user, product, order, and payment services
 - Redis for cart state and RabbitMQ for future domain events
 - Prometheus scraping every API and Grafana with an auto-provisioned datasource
@@ -153,7 +154,9 @@ The Phase 5 checkout foundation currently provides:
 | `POST /api/orders` | Validate a cart, reserve inventory, and create an order |
 | `GET /api/orders` | List a customer's orders, or all orders for an administrator |
 | `GET /api/orders/{number}` | Read an owned order or track a guest order with its private token |
+| `POST /api/orders/{number}/cancel` | Cancel an unpaid owned or privately tracked guest order |
 | `PATCH /api/orders/{number}/status` | Apply an administrator-only order-state transition |
+| `POST /api/orders/actions/expire-reservations` | Release expired reservations as an administrator or scheduled operation |
 
 Checkout requests require an `Idempotency-Key`. Product and address data are snapshotted so order
 history remains stable as the catalog changes. See
@@ -170,6 +173,7 @@ history remains stable as the catalog changes. See
 | `REDIS_URL` | Cart store connection URL |
 | `CART_TTL_SECONDS`, `MAXIMUM_ITEM_QUANTITY`, `MAXIMUM_CART_ITEMS` | Cart lifetime and size limits |
 | `STANDARD_SHIPPING_AMOUNT`, `EXPRESS_SHIPPING_AMOUNT`, `FREE_SHIPPING_THRESHOLD_AMOUNT` | Checkout shipping rules in minor units |
+| `ORDER_RESERVATION_TTL_MINUTES` | Time before an unpaid inventory reservation is eligible for release |
 | `RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS` | Broker bootstrap login |
 | `RABBITMQ_URL` | AMQP service connection URL |
 | `CORS_ORIGINS` | Comma-separated browser origins |
@@ -181,6 +185,6 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phases 1–5 provide the platform foundation, identity, catalog, persistent shopping bag, and checkout.
-Phase 6 completes and hardens the Order Service; Phase 7 adds payments. See the
+Phases 1–6 provide the platform foundation, identity, catalog, persistent shopping bag, checkout, and
+the durable Order Service. Phase 7 adds payments. See the
 [delivery roadmap](docs/roadmap.md) for the milestones and exit criteria through Phase 20.
