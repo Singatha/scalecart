@@ -2,11 +2,12 @@ from collections.abc import AsyncIterator
 from uuid import UUID
 
 import pytest_asyncio
-from app.clients import get_cart_client, get_inventory_client
+from app.clients import InventoryUnavailableError, get_cart_client, get_inventory_client
 from app.database import get_session
 from app.main import app
 from app.models import Base
 from app.schemas import CartItemSnapshot, CartSnapshot
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -52,11 +53,22 @@ class FakeInventoryClient:
     def __init__(self) -> None:
         self.reserved: list[UUID] = []
         self.released: list[UUID] = []
+        self.reserve_failures = 0
+        self.release_failures = 0
+        self.unavailable = False
 
     async def reserve(self, order_id: UUID, items: list[dict[str, str | int]]) -> None:
+        if self.unavailable:
+            raise InventoryUnavailableError
+        if self.reserve_failures:
+            self.reserve_failures -= 1
+            raise HTTPException(status_code=503, detail="Inventory could not be reserved.")
         self.reserved.append(order_id)
 
     async def release(self, order_id: UUID) -> None:
+        if self.release_failures:
+            self.release_failures -= 1
+            raise HTTPException(status_code=503, detail="Inventory could not be released.")
         self.released.append(order_id)
 
 

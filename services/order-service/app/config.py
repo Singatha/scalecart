@@ -13,6 +13,7 @@ class OrderServiceSettings(ServiceSettings):
     standard_shipping_amount: int = 9900
     express_shipping_amount: int = 19900
     free_shipping_threshold_amount: int = 150000
+    order_reservation_ttl_minutes: int = 30
 
 
 @lru_cache

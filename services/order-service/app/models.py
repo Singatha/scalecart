@@ -25,6 +25,7 @@ class Order(Base):
         CheckConstraint("shipping_amount >= 0", name="ck_orders_shipping_nonnegative"),
         CheckConstraint("total_amount >= 0", name="ck_orders_total_nonnegative"),
         Index("ix_orders_customer_created", "customer_id", "created_at"),
+        Index("ix_orders_reservation_expiry", "status", "reservation_expires_at"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -48,6 +49,7 @@ class Order(Base):
     postal_code: Mapped[str] = mapped_column(String(32))
     country_code: Mapped[str] = mapped_column(String(2))
     phone: Mapped[str | None] = mapped_column(String(32))
+    reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
@@ -55,6 +57,12 @@ class Order(Base):
 
     items: Mapped[list["OrderItem"]] = relationship(
         lazy="selectin", back_populates="order", cascade="all, delete-orphan"
+    )
+    status_history: Mapped[list["OrderStatusHistory"]] = relationship(
+        lazy="selectin",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        order_by="OrderStatusHistory.created_at, OrderStatusHistory.id",
     )
 
     @property
@@ -93,3 +101,36 @@ class OrderItem(Base):
     image_url: Mapped[str | None] = mapped_column(String(2048))
 
     order: Mapped[Order] = relationship(back_populates="items")
+
+
+class OrderStatusHistory(Base):
+    __tablename__ = "order_status_history"
+    __table_args__ = (
+        CheckConstraint(
+            "from_status IS NULL OR from_status IN ('reserving_inventory', 'pending_payment', "
+            "'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', "
+            "'checkout_failed')",
+            name="ck_order_status_history_from_status",
+        ),
+        CheckConstraint(
+            "to_status IN ('reserving_inventory', 'pending_payment', 'confirmed', 'processing', "
+            "'shipped', 'delivered', 'cancelled', 'checkout_failed')",
+            name="ck_order_status_history_to_status",
+        ),
+        CheckConstraint(
+            "actor_type IN ('system', 'customer', 'guest', 'admin', 'migration')",
+            name="ck_order_status_history_actor_type",
+        ),
+        Index("ix_order_status_history_order_created", "order_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    order_id: Mapped[UUID] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), index=True)
+    from_status: Mapped[str | None] = mapped_column(String(32))
+    to_status: Mapped[str] = mapped_column(String(32))
+    actor_type: Mapped[str] = mapped_column(String(20))
+    actor_id: Mapped[UUID | None] = mapped_column()
+    reason: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    order: Mapped[Order] = relationship(back_populates="status_history")
