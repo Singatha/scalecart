@@ -1,6 +1,6 @@
 # ScaleCart
 
-A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 5 (orders and checkout) is implemented**.
+A production-style e-commerce platform built as a monorepo of independently deployable FastAPI services behind an NGINX gateway, with a React storefront. The repository is being delivered progressively; **Phase 5 (checkout) is implemented, with Phase 6 (Order Service) next**.
 
 ## What works now
 
@@ -146,7 +146,7 @@ requests use the access-token subject instead. See
 [the cart-service contract](docs/architecture/cart-service.md) for persistence and reconciliation
 behavior.
 
-The Phase 5 order API provides:
+The Phase 5 checkout foundation currently provides:
 
 | Method and path | Purpose |
 |---|---|
@@ -181,4 +181,6 @@ See [the system overview](docs/architecture/system-overview.md) for boundaries a
 
 ## Delivery roadmap
 
-Phases 1–5 provide the platform foundation, identity, catalog, persistent shopping bag, and checkout-backed orders. Payments, events, resilience, and Kubernetes follow in their requested phases.
+Phases 1–5 provide the platform foundation, identity, catalog, persistent shopping bag, and checkout.
+Phase 6 completes and hardens the Order Service; Phase 7 adds payments. See the
+[delivery roadmap](docs/roadmap.md) for the milestones and exit criteria through Phase 20.
